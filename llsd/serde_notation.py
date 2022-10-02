@@ -256,8 +256,7 @@ class LLSDNotationParser(LLSDBaseParser):
     def _parse_uuid(self):
         "Parse a uuid."
         self._index += 1    # eat the beginning 'u'
-        # see comment on LLSDNotationFormatter.UUID() re use of latin-1
-        return uuid.UUID(hex=self._getc(36).decode('latin-1'))
+        return uuid.UUID(int=int(self._getc(36).replace(b'-', b''), 16))
 
     def _parse_uri(self):
         "Parse a URI."
