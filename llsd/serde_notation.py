@@ -106,7 +106,7 @@ class LLSDNotationParser(LLSDBaseParser):
 
         self._buffer = buffer
         self._index = 0
-        return self._parse()
+        return self._parse_any()
 
     def _get_until(self, delim):
         start = self._index
@@ -131,15 +131,9 @@ class LLSDNotationParser(LLSDBaseParser):
             self._index += match.end()
             return override if override is not None else match.group(0)
 
-    def _parse(self):
+    def _parse_any(self):
         "The notation parser workhorse."
-        try:
-            func = self._dispatch[self._peekonec()]
-        except IndexError:
-            # output error if the token was out of range
-            self._error("Invalid notation token")
-        else:
-            return func()
+        return self._dispatch[self._peekonec()]()
 
     def _parse_binary(self):
         "parse a single binary object."
@@ -221,7 +215,7 @@ class LLSDNotationParser(LLSDBaseParser):
                     self._error("Invalid map key")
             elif cc == b':'[0]:
                 self._index += 1    # eat the ':'
-                value = self._parse()
+                value = self._parse_any()
                 rv[key] = value
                 key = None
             elif _WHITESPACE_CHARS[cc]:
@@ -251,7 +245,7 @@ class LLSDNotationParser(LLSDBaseParser):
                 self._index += 1
                 cc = self._peekonec()
                 continue
-            rv.append(self._parse())
+            rv.append(self._parse_any())
             cc = self._peekonec()
 
         if self._getonec() != b']'[0]:
@@ -292,7 +286,7 @@ class LLSDNotationParser(LLSDBaseParser):
         """
         rv = ""
         delim = self._peekonec()
-        if delim in (b'"'[0], b"'"[0]):
+        if delim in (b"'"[0], b'"'[0]):
             self._index += 1        # eat the beginning delim
             rv = self._parse_string_delim(delim)
         elif delim == b's'[0]:
