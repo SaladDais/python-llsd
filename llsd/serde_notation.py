@@ -1,3 +1,4 @@
+import array
 import base64
 import binascii
 import re
@@ -10,6 +11,18 @@ _int_regex = re.compile(br"[-+]?\d+")
 _real_regex = re.compile(br"[-+]?(?:(\d+(\.\d*)?|\d*\.\d+)([eE][-+]?\d+)?)|[-+]?inf|[-+]?nan")
 _true_regex = re.compile(br"TRUE|true|\b[Tt]\b")
 _false_regex = re.compile(br"FALSE|false|\b[Ff]\b")
+
+
+def _chars_to_truth_table(chars):
+    table = array.array("B", 256 * [0])
+    for char in chars:
+        table[char] = 1
+    return table
+
+
+_COLLECTION_PADDING = _chars_to_truth_table((b','[0], b' '[0], b'\t'[0], b'\r'[0], b'\n'[0]))
+_WHITESPACE_CHARS = _chars_to_truth_table((b' '[0], b'\t'[0], b'\r'[0], b'\n'[0]))
+_STRING_INITIATORS = _chars_to_truth_table((b'"'[0], b"'"[0], b's'[0]))
 
 
 class LLSDNotationParser(LLSDBaseParser):
@@ -192,39 +205,31 @@ class LLSDNotationParser(LLSDBaseParser):
         map: { string:object, string:object }
         """
         rv = {}
+        key = None
         self._index += 1
-
         cc = self._peekonec()
         while cc != b'}'[0]:
-            # Find the key
-            while True:
-                if cc in (b'"'[0], b"'"[0], b's'[0]):
+            if key is None:
+                if _STRING_INITIATORS[cc]:
                     # This is a map key
                     key = self._parse_string()
-                    break
-                elif cc in (b','[0], b' '[0], b'\t'[0], b'\r'[0], b'\n'[0]):
+                elif _COLLECTION_PADDING[cc]:
                     # This is effectively a padding character
                     self._index += 1    # eat the character
+                    pass
                 else:
                     self._error("Invalid map key")
-                    return
-                cc = self._peekonec()
-
-            # Found the key, look for the value
-            cc = self._peekonec()
-            while True:
-                if cc == b':'[0]:
-                    self._index += 1    # eat the ':'
-                    value = self._parse()
-                    rv[key] = value
-                    break
-                elif cc in (b' '[0], b'\t'[0], b'\r'[0], b'\n'[0]):
-                    # Space between the key and the `:`
-                    self._index += 1    # eat the space
-                else:
-                    self._error("missing separator")
-                    return
-                cc = self._peekonec()
+            elif cc == b':'[0]:
+                self._index += 1    # eat the ':'
+                value = self._parse()
+                rv[key] = value
+                key = None
+            elif _WHITESPACE_CHARS[cc]:
+                # Space between the key and the `:`
+                self._index += 1    # eat the space
+                pass
+            else:
+                self._error("missing separator")
             cc = self._peekonec()
 
         if self._getonec() != b'}'[0]:
@@ -242,7 +247,7 @@ class LLSDNotationParser(LLSDBaseParser):
         self._index += 1    # eat the beginning '['
         cc = self._peekonec()
         while cc != b']'[0]:
-            if cc in (b','[0], b' '[0], b'\t'[0], b'\r'[0], b'\n'[0]):
+            if _COLLECTION_PADDING[cc]:
                 self._index += 1
                 cc = self._peekonec()
                 continue
@@ -287,7 +292,7 @@ class LLSDNotationParser(LLSDBaseParser):
         """
         rv = ""
         delim = self._peekonec()
-        if delim in (b"'"[0], b'"'[0]):
+        if delim in (b'"'[0], b"'"[0]):
             self._index += 1        # eat the beginning delim
             rv = self._parse_string_delim(delim)
         elif delim == b's'[0]:
@@ -309,7 +314,7 @@ class LLSDNotationParser(LLSDBaseParser):
             self._error("Invalid string token")
 
         size = self._get_until(b')'[0])
-        if size == None:
+        if size is None:
             self._error("Invalid string size")
         size = int(size)
 
