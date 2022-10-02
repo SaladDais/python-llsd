@@ -34,8 +34,8 @@ class LLSDBinaryParser(LLSDBaseParser):
             # 's' = string
             b's': self._parse_string,
             # delimited/escaped string
-            b"'": lambda: self._parse_string_delim(b"'"),
-            b'"': lambda: self._parse_string_delim(b'"'),
+            b"'": lambda: self._parse_string_delim(b"'"[0]),
+            b'"': lambda: self._parse_string_delim(b'"'[0]),
             # 'l' = uri
             b'l': lambda: uri(self._parse_string()),
             # 'd' = date in seconds since epoch

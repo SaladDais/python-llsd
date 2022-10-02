@@ -522,6 +522,9 @@ class LLSDNotationUnitTest(unittest.TestCase):
     def testParseNotationInvalidHex(self):
         self.assertRaises(llsd.LLSDParseError, self.llsd.parse, b"'\\xzz'")
 
+    def testParseNotationBinary(self):
+        self.assertEqual(b"foo", self.llsd.parse(b'b(3)"foo"'))
+
 
 class LLSDBinaryUnitTest(unittest.TestCase):
     """

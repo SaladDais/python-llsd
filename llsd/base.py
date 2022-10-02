@@ -408,7 +408,7 @@ class LLSDBaseParser(object):
 
     def _getonec(self):
         try:
-            val = bytes((self._buffer[self._index],))
+            val = self._buffer[self._index]
             self._index += 1
             return val
         except IndexError:
@@ -416,7 +416,7 @@ class LLSDBaseParser(object):
 
     def _peekonec(self):
         try:
-            return bytes((self._buffer[self._index],))
+            return self._buffer[self._index]
         except IndexError:
             self._error("Trying to read past end of buffer")
 
@@ -434,7 +434,6 @@ class LLSDBaseParser(object):
     def _parse_string_delim(self, delim):
         "Parse a delimited string."
         insert_idx = 0
-        delim_ord = ord(delim)
         # Preallocate a working buffer for the decoded string output
         # to avoid allocs in the hot loop.
         decode_buff = self._decode_buff
@@ -477,7 +476,7 @@ class LLSDBaseParser(object):
                         # in _escaped just results in that same char without
                         # the escape char
                         cc = self._escaped.get(cc, cc)
-                elif cc == delim_ord:
+                elif cc == delim:
                     break
             except IndexError:
                 # We can be reasonably sure that any IndexErrors inside here
