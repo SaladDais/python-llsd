@@ -107,7 +107,7 @@ class LLSDNotationParser(LLSDBaseParser):
     def _skip_then(self, value):
         # We've already _peek()ed at the current character, which is how we
         # decided to call this method. Skip past it and return constant value.
-        self._getc()
+        self._index += 1
         return value
 
     def _get_re(self, desc, regex, override=None):
@@ -120,9 +120,8 @@ class LLSDNotationParser(LLSDBaseParser):
 
     def _parse(self):
         "The notation parser workhorse."
-        cc = self._peek()
         try:
-            func = self._dispatch[ord(cc)]
+            func = self._dispatch[self._buffer[self._index]]
         except IndexError:
             # output error if the token was out of range
             self._error("Invalid notation token")
@@ -132,29 +131,27 @@ class LLSDNotationParser(LLSDBaseParser):
     def _parse_binary(self):
         "parse a single binary object."
 
-        self._getc()    # eat the beginning 'b'
-        cc = self._peek()
+        self._index += 1    # eat the beginning 'b'
+        cc = self._peekonec()
         if cc == b'(':
             # parse raw binary
-            paren = self._getc()
+            self._index += 1
 
             # grab the 'expected' size of the binary data
-            size = self._get_until(b')')
-            if size == None:
+            size = self._get_until(b')'[0])
+            if size is None:
                 self._error("Invalid binary size")
             size = int(size)
 
             # grab the opening quote
-            q = self._getc()
-            if q != b'"':
+            if self._getonec() != b'"':
                 self._error('Expected " to start binary value')
 
             # grab the data
             data = self._getc(size)
 
             # grab the closing quote
-            q = self._getc()
-            if q != b'"':
+            if self._getonec() != b'"':
                 self._error('Expected " to end binary value')
 
             return binary(data)
@@ -172,7 +169,7 @@ class LLSDNotationParser(LLSDBaseParser):
                             base.decode('latin-1'))
 
             # grab the double quote
-            q = self._getc()
+            q = self._getonec()
             if q != b'"':
                 self._error('Expected " to start binary value')
 
@@ -197,8 +194,8 @@ class LLSDNotationParser(LLSDBaseParser):
         rv = {}
         key = b''
         found_key = False
-        self._getc()   # eat the beginning '{'
-        cc = self._peek()
+        self._index += 1
+        cc = self._peekonec()
         while (cc != b'}'):
             if cc is None:
                 self._error("Unclosed map")
@@ -207,23 +204,23 @@ class LLSDNotationParser(LLSDBaseParser):
                     key = self._parse_string()
                     found_key = True
                 elif cc.isspace() or cc == b',':
-                    self._getc()    # eat the character
+                    self._index += 1    # eat the character
                     pass
                 else:
                     self._error("Invalid map key")
             elif cc.isspace():
-                self._getc()    # eat the space
+                self._index += 1    # eat the space
                 pass
             elif cc == b':':
-                self._getc()    # eat the ':'
+                self._index += 1    # eat the ':'
                 value = self._parse()
                 rv[key] = value
                 found_key = False
             else:
                 self._error("missing separator")
-            cc = self._peek()
+            cc = self._peekonec()
 
-        if self._getc() != b'}':
+        if self._getonec() != b'}':
             self._error("Invalid map close token")
 
         return rv
@@ -235,47 +232,47 @@ class LLSDNotationParser(LLSDBaseParser):
         array: [ object, object, object ]
         """
         rv = []
-        self._getc()    # eat the beginning '['
-        cc = self._peek()
+        self._index += 1    # eat the beginning '['
+        cc = self._peekonec()
         while (cc != b']'):
             if cc is None:
                 self._error('Unclosed array')
             if cc.isspace() or cc == b',':
-                self._getc()
-                cc = self._peek()
+                self._index += 1
+                cc = self._peekonec()
                 continue
             rv.append(self._parse())
-            cc = self._peek()
+            cc = self._peekonec()
 
-        if self._getc() != b']':
+        if self._getonec() != b']':
             self._error("Invalid array close token")
         return rv
 
     def _parse_uuid(self):
         "Parse a uuid."
-        self._getc()    # eat the beginning 'u'
+        self._index += 1    # eat the beginning 'u'
         # see comment on LLSDNotationFormatter.UUID() re use of latin-1
         return uuid.UUID(hex=self._getc(36).decode('latin-1'))
 
     def _parse_uri(self):
         "Parse a URI."
-        self._getc()    # eat the beginning 'l'
+        self._index += 1    # eat the beginning 'l'
         return uri(self._parse_string())
 
     def _parse_date(self):
         "Parse a date."
-        self._getc()    # eat the beginning 'd'
+        self._index += 1    # eat the beginning 'd'
         datestr = self._parse_string()
         return _parse_datestr(datestr)
 
     def _parse_real(self):
         "Parse a floating point number."
-        self._getc()    # eat the beginning 'r'
+        self._index += 1    # eat the beginning 'r'
         return float(self._get_re("real", _real_regex))
 
     def _parse_integer(self):
         "Parse an integer."
-        self._getc()    # eat the beginning 'i'
+        self._index += 1    # eat the beginning 'i'
         return int(self._get_re("integer", _int_regex))
 
     def _parse_string(self):
@@ -285,9 +282,9 @@ class LLSDNotationParser(LLSDBaseParser):
         string: "g\'day" | 'have a "nice" day' | s(size)"raw data"
         """
         rv = ""
-        delim = self._peek()
+        delim = self._peekonec()
         if delim in (b"'", b'"'):
-            delim = self._getc()        # eat the beginning delim
+            self._index += 1        # eat the beginning delim
             rv = self._parse_string_delim(delim)
         elif delim == b's':
             rv = self._parse_string_raw()
@@ -302,10 +299,9 @@ class LLSDNotationParser(LLSDBaseParser):
 
         string: s(size)"raw data"
         """
-        self._getc()    # eat the beginning 's'
+        self._index += 1    # eat the beginning 's'
         # Read the (size) portion.
-        cc = self._getc()
-        if cc != b'(':
+        if self._getonec() != b'(':
             self._error("Invalid string token")
 
         size = self._get_until(b')')
@@ -313,13 +309,12 @@ class LLSDNotationParser(LLSDBaseParser):
             self._error("Invalid string size")
         size = int(size)
 
-        delim = self._getc()
+        delim = self._getonec()
         if delim not in (b"'", b'"'):
             self._error("Invalid string token")
 
         rv = self._getc(size)
-        cc = self._getc()
-        if cc != delim:
+        if self._getonec() != delim:
             self._error("Invalid string closure token")
         try:
             return rv.decode('utf-8')

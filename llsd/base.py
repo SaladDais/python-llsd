@@ -406,6 +406,20 @@ class LLSDBaseParser(object):
         self._index += num
         return chars
 
+    def _getonec(self):
+        try:
+            val = bytes((self._buffer[self._index],))
+            self._index += 1
+            return val
+        except IndexError:
+            self._error("Trying to read past end of buffer")
+
+    def _peekonec(self):
+        try:
+            return bytes((self._buffer[self._index],))
+        except IndexError:
+            self._error("Trying to read past end of buffer")
+
     # map char following escape char to corresponding character
     _escaped = {
         ord(b'a'): ord(b'\a'),
