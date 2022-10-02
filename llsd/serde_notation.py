@@ -192,31 +192,39 @@ class LLSDNotationParser(LLSDBaseParser):
         map: { string:object, string:object }
         """
         rv = {}
-        key = None
         self._index += 1
+
         cc = self._peekonec()
         while cc != b'}'[0]:
-            if key is None:
-                if cc in (b"'"[0], b'"'[0], b's'[0]):
+            # Find the key
+            while True:
+                if cc in (b'"'[0], b"'"[0], b's'[0]):
                     # This is a map key
                     key = self._parse_string()
+                    break
                 elif cc in (b','[0], b' '[0], b'\t'[0], b'\r'[0], b'\n'[0]):
                     # This is effectively a padding character
                     self._index += 1    # eat the character
-                    pass
                 else:
                     self._error("Invalid map key")
-            elif cc in (b' '[0], b'\t'[0], b'\r'[0], b'\n'[0]):
-                # Space between the key and the `:`
-                self._index += 1    # eat the space
-                pass
-            elif cc == b':'[0]:
-                self._index += 1    # eat the ':'
-                value = self._parse()
-                rv[key] = value
-                key = None
-            else:
-                self._error("missing separator")
+                    return
+                cc = self._peekonec()
+
+            # Found the key, look for the value
+            cc = self._peekonec()
+            while True:
+                if cc == b':'[0]:
+                    self._index += 1    # eat the ':'
+                    value = self._parse()
+                    rv[key] = value
+                    break
+                elif cc in (b' '[0], b'\t'[0], b'\r'[0], b'\n'[0]):
+                    # Space between the key and the `:`
+                    self._index += 1    # eat the space
+                else:
+                    self._error("missing separator")
+                    return
+                cc = self._peekonec()
             cc = self._peekonec()
 
         if self._getonec() != b'}'[0]:
