@@ -96,7 +96,7 @@ class LLSDBinaryParser(LLSDBaseParser):
             if cc == b'k':
                 key = self._parse_string()
             elif cc in (b"'", b'"'):
-                key = self._parse_string_delim(cc)
+                key = self._parse_string_delim(cc[0])
             else:
                 self._error("invalid map key", -1)
             value = self._parse()
@@ -106,6 +106,12 @@ class LLSDBinaryParser(LLSDBaseParser):
         if cc != b'}':
             self._error("invalid map close token")
         return rv
+
+    def _parse_string_delim(self, delim):
+        # The base function assumes we dispatch based on `peekc()`, but we actually
+        # dispatch based on `peekc()`
+        self._index -= 1
+        return super()._parse_string_delim(delim)
 
     def _parse_array(self):
         "Parse a single llsd array"

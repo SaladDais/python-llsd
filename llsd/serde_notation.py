@@ -73,9 +73,9 @@ class LLSDNotationParser(LLSDBaseParser):
             # 'u' = uuid
             b'u': self._parse_uuid,
             # string
-            b"'": self._parse_string,
-            b'"': self._parse_string,
-            b's': self._parse_string,
+            b"'": lambda: self._parse_string_delim(b"'"[0]),
+            b'"': lambda: self._parse_string_delim(b'"'[0]),
+            b's': self._parse_string_raw,
             # 'l' = uri
             b'l': self._parse_uri,
             # 'd' = date in seconds since epoch
@@ -282,7 +282,6 @@ class LLSDNotationParser(LLSDBaseParser):
         """
         delim = self._peekonec()
         if delim in (b"'"[0], b'"'[0]):
-            self._index += 1        # eat the beginning delim
             return self._parse_string_delim(delim)
         elif delim == b's'[0]:
             return self._parse_string_raw()

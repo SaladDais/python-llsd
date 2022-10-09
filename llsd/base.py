@@ -447,6 +447,8 @@ class LLSDBaseParser(object):
         # `self` in the hot loop.
         buff = self._buffer
         read_idx = self._index
+        # Skip opening delim
+        read_idx += 1
         cc = 0
         while True:
             try:

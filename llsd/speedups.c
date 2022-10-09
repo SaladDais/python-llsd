@@ -62,6 +62,9 @@ PyObject* parse_delimited_string(PyObject* self, PyObject *args, PyObject *kwarg
   char* output_ptr = output_buffer;
   PyObject* ret = NULL;
 
+  // skip opening delimiter
+  ++parse_ptr;
+
   // Note that python-llsd's tests require embedded nulls to be allowed in string literals,
   // so we can't switch on nullity to determine if we're at the end of the string. We need
   // an explicit length check every time we go through the loop.
