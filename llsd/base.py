@@ -9,6 +9,12 @@ import types
 import uuid
 
 try:
+    import llsd._speedups as llsd_speedups
+except ImportError:
+    llsd_speedups = None
+
+
+try:
     # If the future package is installed, then we support it.  Any clients in
     # python 2 using its str builtin replacement will actually be using instances
     # of newstr, so we need to properly detect that as a string type
@@ -502,6 +508,12 @@ class LLSDBaseParser(object):
             return decode_buff[:insert_idx].decode('utf-8')
         except UnicodeDecodeError as exc:
             self._error(exc)
+
+    if llsd_speedups:
+        def _parse_string_delim(self, delim):
+            val, index = llsd_speedups.parse_delimited_string(self._buffer, self._index, delim)
+            self._index += index
+            return val
 
 
 def starts_with(startstr, something):
