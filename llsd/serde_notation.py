@@ -58,8 +58,8 @@ class LLSDNotationParser(LLSDBaseParser):
             # 'u' = uuid
             b'u': self._parse_uuid,
             # string
-            b"'": self._parse_string,
-            b'"': self._parse_string,
+            b"'": lambda: self._parse_string_delim(ord(b"'")),
+            b'"': lambda: self._parse_string_delim(ord(b'"')),
             b's': self._parse_string,
             # 'l' = uri
             b'l': self._parse_uri,
@@ -287,14 +287,19 @@ class LLSDNotationParser(LLSDBaseParser):
         rv = ""
         delim = self._peek()
         if delim in (b"'", b'"'):
-            delim = self._getc()        # eat the beginning delim
-            rv = self._parse_string_delim(delim)
+            rv = self._parse_string_delim(ord(delim))
         elif delim == b's':
             rv = self._parse_string_raw()
         else:
             self._error("invalid string token")
 
         return rv
+
+    def _parse_string_delim(self, delim):
+        # Jump over the first delimiter, we only peek() for dispatch but
+        # the base method assumes we dispatch based on get()
+        self._index += 1
+        return super()._parse_string_delim(delim)
 
     def _parse_string_raw(self):
         """

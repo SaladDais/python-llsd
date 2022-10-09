@@ -34,8 +34,8 @@ class LLSDBinaryParser(LLSDBaseParser):
             # 's' = string
             b's': self._parse_string,
             # delimited/escaped string
-            b"'": lambda: self._parse_string_delim(b"'"),
-            b'"': lambda: self._parse_string_delim(b'"'),
+            b"'": lambda: self._parse_string_delim(ord(b"'")),
+            b'"': lambda: self._parse_string_delim(ord(b'"')),
             # 'l' = uri
             b'l': lambda: uri(self._parse_string()),
             # 'd' = date in seconds since epoch
@@ -96,7 +96,7 @@ class LLSDBinaryParser(LLSDBaseParser):
             if cc == b'k':
                 key = self._parse_string()
             elif cc in (b"'", b'"'):
-                key = self._parse_string_delim(cc)
+                key = self._parse_string_delim(ord(cc[0]))
             else:
                 self._error("invalid map key", -1)
             value = self._parse()
