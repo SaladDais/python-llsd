@@ -43,6 +43,8 @@ class LLSDNotationParser(LLSDBaseParser):
     * date: d"YYYY-MM-DDTHH:MM:SS.FFZ"
     * binary: b##"ff3120ab1" | b(size)"raw data"
     """
+    __slots__ = ["_dispatch"]
+
     def __init__(self):
         super(LLSDNotationParser, self).__init__()
         # Like LLSDBinaryParser, we want to dispatch based on the current
@@ -174,6 +176,7 @@ class LLSDNotationParser(LLSDBaseParser):
             except KeyError:
                 self._error("Parser doesn't support base %s encoding" %
                             base.decode('latin-1'))
+                return
 
             # grab the double quote
             q = self._getonec()
@@ -201,8 +204,7 @@ class LLSDNotationParser(LLSDBaseParser):
         rv = {}
         key = None
         self._index += 1
-        cc = self._peekonec()
-        while cc != b'}'[0]:
+        while (cc := self._peekonec()) != b'}'[0]:
             if key is None:
                 if _STRING_INITIATORS[cc]:
                     # This is a map key
@@ -210,24 +212,20 @@ class LLSDNotationParser(LLSDBaseParser):
                 elif _COLLECTION_PADDING[cc]:
                     # This is effectively a padding character
                     self._index += 1    # eat the character
-                    pass
                 else:
                     self._error("Invalid map key")
             elif cc == b':'[0]:
                 self._index += 1    # eat the ':'
-                value = self._parse_any()
-                rv[key] = value
+                rv[key] = self._parse_any()
                 key = None
             elif _WHITESPACE_CHARS[cc]:
                 # Space between the key and the `:`
                 self._index += 1    # eat the space
-                pass
             else:
                 self._error("missing separator")
-            cc = self._peekonec()
 
-        if self._getonec() != b'}'[0]:
-            self._error("Invalid map close token")
+        # Skip over the ending '}' token
+        self._index += 1
 
         return rv
 
@@ -239,17 +237,15 @@ class LLSDNotationParser(LLSDBaseParser):
         """
         rv = []
         self._index += 1    # eat the beginning '['
-        cc = self._peekonec()
-        while cc != b']'[0]:
+        while (cc := self._peekonec()) != b']'[0]:
             if _COLLECTION_PADDING[cc]:
+                # Skip over collection padding chars
                 self._index += 1
-                cc = self._peekonec()
                 continue
             rv.append(self._parse_any())
-            cc = self._peekonec()
 
-        if self._getonec() != b']'[0]:
-            self._error("Invalid array close token")
+        # Skip over the closing ']'
+        self._index += 1
         return rv
 
     def _parse_uuid(self):
@@ -284,17 +280,14 @@ class LLSDNotationParser(LLSDBaseParser):
 
         string: "g\'day" | 'have a "nice" day' | s(size)"raw data"
         """
-        rv = ""
         delim = self._peekonec()
         if delim in (b"'"[0], b'"'[0]):
             self._index += 1        # eat the beginning delim
-            rv = self._parse_string_delim(delim)
+            return self._parse_string_delim(delim)
         elif delim == b's'[0]:
-            rv = self._parse_string_raw()
+            return self._parse_string_raw()
         else:
             self._error("invalid string token")
-
-        return rv
 
     def _parse_string_raw(self):
         """
