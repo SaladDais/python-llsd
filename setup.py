@@ -53,6 +53,7 @@ def run_setup(with_binary):
         use_scm_version={
             'local_scheme': 'no-local-version',  # disable local-version to allow uploads to test.pypi.org
         },
+        python_requires='>=3.7',
         extras_require={
             "dev": ["pytest", "pytest-cov<3"],
         },

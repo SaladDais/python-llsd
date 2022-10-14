@@ -2,6 +2,7 @@
 /// Copyright Muttley WackyRaces 2022
 /// MIT
 
+#define Py_LIMITED_API 0x03070000
 #define PY_SSIZE_T_CLEAN 1
 #include <Python.h>
 
@@ -48,9 +49,11 @@ PyObject* parse_delimited_string(PyObject* self, PyObject *args, PyObject *kwarg
 
   // Allocate scratch space in which to place the decoded string literal.
   // LLSD strings. The decoded string length can never be larger than
-  // the encoded version under LLSD encoding rules.
+  // the encoded version under LLSD encoding rules. You might think that
+  // you should use PyMem_RawAlloc, but the free for that seems to segfault
+  // when using the limited API. Oh well.
   char *output_buffer;
-  if ((output_buffer = PyMem_RawMalloc(buffer_len - index)) == NULL)
+  if ((output_buffer = malloc(buffer_len - index)) == NULL)
   {
     return NULL;
   }
@@ -189,7 +192,7 @@ PyObject* parse_delimited_string(PyObject* self, PyObject *args, PyObject *kwarg
   }
   set_error("Missing terminating quote when decoding 'string'");
   done_parsing:
-  PyMem_RawFree(output_buffer);
+  free(output_buffer);
   return ret;
 }
 
